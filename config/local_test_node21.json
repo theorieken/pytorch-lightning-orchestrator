@@ -2,15 +2,7 @@
     "name": "unet_training",
     "wandb": {
         "api_key": "508847e6cbd52b24df9f7538f1a1cf51c35d0cd2",
-        "project": "Next Gen Framework",
-        "config": {
-            "batch_size": 4,
-            "epochs": 100,
-            "learning_rate": 0.001,
-            "model": "unet",
-            "optimizer": "adam",
-            "split": 0.8
-        }
+        "project": "Next Gen Framework"
     },
     "module": {
         "type": "Modules.simple_linear_module.SimpleLinearModule",
@@ -25,10 +17,10 @@
             "split": 0.8
         }
     },
-    "logger": {
-        "type": "deep_orchestrator.loggers.default_logger.DefaultLogger",
+    "trainer": {
         "params": {
-
+            "batch_size": 4,
+            "num_workers": 0
         }
     },
     "presume": false

@@ -1,6 +1,6 @@
 # Pytorch Lightning Orchestrator
 
-This project creates a wrapper around PyTorch lighting which orchestrates different lightning modules and connects them to wandb.
+This project creates a wrapper around PyTorch lightning which orchestrates different lightning modules and connects them to Weights & Biases (wandb). It allows you to specify custom datasets, modules, loggers, and trainers, with support for default implementations if none are provided.
 
 ## Installation
 
@@ -17,15 +17,15 @@ The orchestrator is used by creating a list of jobs which are then run in sequen
 ```python
 from deep_orchestrator import Orchestrator
 
-jobs = ['job1', 'job2', 'job3']
+jobs = ['job1.json', 'job2.json', 'job3.json']
 
 orchestrator = Orchestrator(jobs=jobs)
 orchestrator.run()
 ```
 
-Jobs are encoded like this
+Jobs are encoded as JSON files with a structure like the following:
 
-```json
+```json 
 {
     "name": "job1",
     "presume": true,
@@ -43,8 +43,9 @@ Jobs are encoded like this
     "dataset": {
         "type": "YourDataset",
         "params": {
-            "param1": "value1",
-            "param2": "value2"
+            "path": "/path/to/dataset",
+            "split": 0.8,
+            "fraction": 1.0
         }
     },
     "logger": {
@@ -53,7 +54,23 @@ Jobs are encoded like this
             "param1": "value1",
             "param2": "value2"
         }
+    },
+    "trainer": {
+        "type": "YourTrainer",
+        "params": {
+            "batch_size": 4,
+            "shuffle": true,
+            "num_workers": 4,
+            "pin_memory": true
+        }
     }
 }
-
 ```
+
+The orchestrator will load your custom classes dynamically based on the "type" provided. If no custom class is specified, the orchestrator will use a default implementation. For example, if you don't specify a "trainer", the orchestrator will use the DefaultTrainer.
+
+The params field in each section allows you to provide parameters for your custom classes. For example, in the "dataset" section, you can specify the path to your dataset, the fraction of the dataset to use, and the split ratio for the training and validation sets.
+
+The "wandb" section is used to specify parameters for Weights & Biases logging, such as your API key and the project name. If you set "presume" to true, the orchestrator will continue to the next job if an error occurs.
+
+The orchestrator will log all outputs to a file named "log.txt" in a directory named after the job. It will also save the final model weights to this directory.

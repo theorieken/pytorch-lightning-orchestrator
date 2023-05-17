@@ -14,7 +14,7 @@ class SimpleLinearModule(BaseModule):
         # Simple linear model
         self.model = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(1024 * 1024, 256),
+            nn.Linear(512 * 512, 256),
             nn.ReLU(),
             nn.Linear(256, 64),
             nn.ReLU(),
@@ -29,7 +29,7 @@ class SimpleLinearModule(BaseModule):
         y_hat = self(x)
         # Use mean squared error loss for bounding box regression
         loss = F.mse_loss(y_hat, y)
-        self.log('train_loss', loss)
+        self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
         return loss
 
     def validation_step(self, batch, batch_idx):

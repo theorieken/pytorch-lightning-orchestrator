@@ -1,20 +1,13 @@
 from pytorch_lightning.loggers import WandbLogger
-from rich.console import Console
-from rich.table import Table
 import logging
 
 
 class BaseLogger(WandbLogger):
-    def __init__(self, params, wandb):
+    def __init__(self, params, wandb, job_dir):
         super().__init__(**wandb)
         self.params = params
         self.job_name = params.get('job_name', 'unnamed_job')
-
-        # self.console = Console()
-        # self.table = Table(show_header=True, header_style="bold magenta")
-        # self.table.add_column("Epoch")
-        # self.table.add_column("Training Loss")
-        # self.table.add_column("Validation Loss")
+        self.job_dir = job_dir
 
         # Create logger
         self.logger = logging.getLogger(self.job_name)
@@ -33,14 +26,11 @@ class BaseLogger(WandbLogger):
 
     def log_message(self, message: str):
         self.logger.info(message)
-        with open(f"Jobs/{self.job_name}/log.txt", "a") as log_file:
+        with open(f"{self.job_dir}/log.txt", "a") as log_file:
             log_file.write(message + "\n")
 
     def log_metrics(self, metrics, step=None):
         super().log_metrics(metrics, step)
-        # self.table.add_row(str(step), str(metrics.get('train_loss', '')), str(metrics.get('val_loss', '')))
-        # self.console.clear()
-        # self.console.print(self.table)
 
     def on_step(self, trainer, pl_module):
         # Override this method to do something after each step
