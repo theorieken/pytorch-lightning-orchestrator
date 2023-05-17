@@ -1,3 +1,12 @@
+# Exclude project specific files
+data/
+jobs/
+wandb/
+
+# IDE and OS specific things
+*.DS_Store
+.idea/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
