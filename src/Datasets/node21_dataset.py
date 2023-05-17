@@ -1,17 +1,20 @@
 import os
+import random
+import torch
 import pandas as pd
 import numpy as np
-import torch
-from deep_orchestrator.base.base_dataset import BaseDataset
-from torchvision.transforms import Compose, Resize, ToTensor, Normalize, Grayscale
 import SimpleITK as sitk
 from PIL import Image
+
+from deep_orchestrator.base.base_dataset import BaseDataset
+from torchvision.transforms import Compose, Resize, ToTensor, Normalize, Grayscale
 
 
 class Node21Dataset(BaseDataset):
     def __init__(self, params):
         super().__init__(params)
         self.data_dir = params["path"]
+        self.fraction = params.get("fraction", 1.0)
         self.image_size = params.get("image_size", (512, 512))  # New attribute for the target image size
 
         # Define the preprocessing pipeline
@@ -24,8 +27,6 @@ class Node21Dataset(BaseDataset):
 
         self.image_paths, self.label_data = self.load_paths_and_labels()
 
-        self.image_paths, self.label_data = self.load_paths_and_labels()
-
     def load_paths_and_labels(self):
         image_dir = os.path.join(self.data_dir, "cxr_images", "original_data", "images")
         label_csv_path = os.path.join(self.data_dir, "cxr_images", "original_data", "metadata.csv")
@@ -33,7 +34,15 @@ class Node21Dataset(BaseDataset):
         label_data = pd.read_csv(label_csv_path)
         image_paths = [os.path.join(image_dir, img_name) for img_name in label_data["img_name"]]
 
-        return image_paths, label_data
+        # Shuffle the data and select a subset if self.fraction < 1
+        if self.fraction < 1.0:
+            combined = list(zip(image_paths, label_data.values))
+            random.shuffle(combined)
+            num_samples = int(len(combined) * self.fraction)
+            image_paths, label_data_values = zip(*combined[:num_samples])
+            label_data = pd.DataFrame(np.array(label_data_values), columns=label_data.columns)
+
+        return list(image_paths), label_data
 
     def __getitem__(self, idx):
         image_path = self.image_paths[idx]

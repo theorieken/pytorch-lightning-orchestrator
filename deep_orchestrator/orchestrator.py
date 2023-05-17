@@ -23,7 +23,7 @@ class Orchestrator:
             "module": config["module"]["params"],
             "dataset": config["dataset"]["params"],
             "logger": config["logger"]["params"] if "logger" in config else {},
-            "trainer": config["trainer"]["params"] if "trainer" in config else {}
+            "trainer": config["trainer"]["params"] if "trainer" in config else {},
         }
 
         # Flatten the dictionary
@@ -57,8 +57,14 @@ class Orchestrator:
         assert "type" in config["dataset"], "'type' key missing in 'dataset' config"
         assert "params" in config["dataset"], "'params' key missing in 'dataset' config"
 
+        if "logger" in config:
+            assert "params" in config["logger"], "'params' key missing in 'logger' config"
+        if "trainer" in config:
+            assert "params" in config["trainer"], "'params' key missing in 'trainer' config"
+
     def run(self):
         for job in self.jobs:
+
             with open(job, "r") as f:
                 config = json.load(f)
 
@@ -77,25 +83,34 @@ class Orchestrator:
             with open(f"{job_dir}/config.json", 'w') as f:
                 json.dump(config, f, indent=4)
 
-            Module = self._load_class(config["module"]["type"])
-            assert issubclass(Module, BaseModule)
-            module = Module(config["module"]["params"])
-
-            Dataset = self._load_class(config["dataset"]["type"])
-            assert issubclass(Dataset, BaseDataset)
-            dataset = Dataset(config["dataset"]["params"])
-
             Logger = self._load_class(config.get("logger", {}).get("type", "deep_orchestrator.loggers.default_logger.DefaultLogger"))
             assert issubclass(Logger, BaseLogger)
             config["wandb"]["config"] = self._get_wandb_config(config)
-            logger = Logger({**config.get("logger", {}).get("params", {}), **{"job_name": name}}, config["wandb"], job_dir)
+            config["wandb"]["save_dir"] = job_dir
+            logger = Logger({**config.get("logger", {}).get("params", {}), **{"job_name": name}}, config["wandb"])
 
-            Trainer = self._load_class(config.get("trainer", {}).get("type", "deep_orchestrator.trainers.default_trainer.DefaultTrainer"))
-            assert issubclass(Trainer, BaseTrainer)
-            trainer = Trainer(config.get("trainer", {}).get("params", {}))
+            try:
 
-            # Prepare the data
-            trainer.prepare_data(dataset)
+                Module = self._load_class(config["module"]["type"])
+                assert issubclass(Module, BaseModule)
+                module = Module(config["module"]["params"])
+
+                Dataset = self._load_class(config["dataset"]["type"])
+                assert issubclass(Dataset, BaseDataset)
+                dataset = Dataset(config["dataset"]["params"])
+
+                Trainer = self._load_class(config.get("trainer", {}).get("type", "deep_orchestrator.trainers.default_trainer.DefaultTrainer"))
+                assert issubclass(Trainer, BaseTrainer)
+                trainer = Trainer(config.get("trainer", {}).get("params", {}))
+
+            except Exception as e:
+                logger.log_message(f"Error while preparing objects for job '{name}': {str(e)}\n{traceback.format_exc()}")
+
+            try:
+                # Prepare the data
+                trainer.prepare_data(dataset)
+            except Exception as e:
+                logger.log_message(f"Error while preparing data for job '{name}': {str(e)}\n{traceback.format_exc()}")
 
             # Train the model
             try:
