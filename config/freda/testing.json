@@ -1,5 +1,6 @@
 {
     "name": "Testing",
+    "resume": true,
     "wandb": {
         "api_key": "508847e6cbd52b24df9f7538f1a1cf51c35d0cd2",
         "project": "Next Gen Framework"

@@ -5,8 +5,9 @@ import torch
 
 
 class DefaultTrainer(BaseTrainer):
-    def __init__(self, params):
-        super().__init__(params)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.max_epochs = self.params.get("max_epochs", 1000)
 
     def prepare_data(self, dataset):
         split_ratio = self.params.get("split_ratio", 0.8)
@@ -21,8 +22,18 @@ class DefaultTrainer(BaseTrainer):
 
         # Initialize data loaders for both parts of the split data set
         self.train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, pin_memory=pin_memory)
-        self.val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, pin_memory=pin_memory)
+        self.val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=pin_memory)
 
-    def train(self, module, logger):
-        trainer = pl.Trainer(logger=logger)
-        trainer.fit(module, self.train_dataloader, self.val_dataloader)
+    def train(self, module, logger, checkpoint_path: str = None):
+
+        assert self.train_dataloader is not None, "Data loader not initialized. Call prepare_data() first."
+        assert self.val_dataloader is not None, "Data loader not initialized. Call prepare_data() first."
+
+        trainer = pl.Trainer(
+            logger=logger,
+            max_epochs=self.max_epochs,
+        )
+        if checkpoint_path is None:
+            trainer.fit(module, self.train_dataloader, self.val_dataloader)
+        else:
+            trainer.fit(module, self.train_dataloader, self.val_dataloader, ckpt_path=checkpoint_path)

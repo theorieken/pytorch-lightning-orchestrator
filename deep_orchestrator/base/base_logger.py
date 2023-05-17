@@ -23,8 +23,18 @@ class BaseLogger(WandbLogger):
         # Add the handlers to the logger
         self.logger.addHandler(ch)
 
-    def log_message(self, message: str):
-        self.logger.info(message)
+    def log_message(self, message: str, kind: str = "info"):
+        if kind == "info":
+            self.logger.info(message)
+        elif kind == "warning":
+            self.logger.warning(message)
+        elif kind == "error":
+            self.logger.error(message)
+        elif kind == "critical":
+            self.logger.critical(message)
+        else:
+            raise ValueError(f"Unknown message kind '{kind}'")
+
         with open(f"{self.save_dir}/log.txt", "a") as log_file:
             log_file.write(message + "\n")
 

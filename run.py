@@ -10,6 +10,8 @@ parser.add_argument('configs', metavar='C', type=str, nargs='+', help='Job confi
 # Parse arguments
 args = parser.parse_args()
 
-# Instantiate orchestrator and run
-orchestrator = Orchestrator(jobs=args.configs)
-orchestrator.run()
+
+if __name__ == '__main__':
+    # Instantiate orchestrator and run
+    orchestrator = Orchestrator(jobs=args.configs)
+    orchestrator.run()

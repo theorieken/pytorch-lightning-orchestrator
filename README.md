@@ -28,7 +28,7 @@ Jobs are encoded as JSON files with a structure like the following:
 ```json 
 {
     "name": "job1",
-    "presume": true,
+    "resume": true,
     "wandb": {
         "api_key": "your-wandb-api-key",
         "project_name": "your-wandb-project-name"
@@ -58,6 +58,7 @@ Jobs are encoded as JSON files with a structure like the following:
     "trainer": {
         "type": "YourTrainer",
         "params": {
+            "max_epochs": 1000,
             "batch_size": 4,
             "shuffle": true,
             "num_workers": 4,

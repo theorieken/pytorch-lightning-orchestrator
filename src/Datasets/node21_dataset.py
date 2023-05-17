@@ -32,7 +32,13 @@ class Node21Dataset(BaseDataset):
         label_csv_path = os.path.join(self.data_dir, "cxr_images", "original_data", "metadata.csv")
 
         label_data = pd.read_csv(label_csv_path)
-        image_paths = [os.path.join(image_dir, img_name) for img_name in label_data["img_name"]]
+
+        # Check if each image exists before adding it to the list
+        image_paths = [os.path.join(image_dir, img_name) for img_name in label_data["img_name"] if
+                       os.path.exists(os.path.join(image_dir, img_name))]
+
+        # Match label data rows to existing images
+        label_data = label_data[label_data["img_name"].isin([os.path.basename(path) for path in image_paths])]
 
         # Shuffle the data and select a subset if self.fraction < 1
         if self.fraction < 1.0:

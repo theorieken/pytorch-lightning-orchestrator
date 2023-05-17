@@ -4,6 +4,7 @@ import os
 import wandb
 import importlib
 import torch
+import glob
 
 from datetime import datetime
 
@@ -11,6 +12,18 @@ from .base.base_module import BaseModule
 from .base.base_logger import BaseLogger
 from .base.base_dataset import BaseDataset
 from .base.base_trainer import BaseTrainer
+
+
+def find_latest_checkpoint(directory):
+    # Use glob to find all .ckpt files in the directory and its subdirectories
+    checkpoint_files = glob.glob(os.path.join(directory, '**', '*.ckpt'), recursive=True)
+
+    # If no .ckpt files are found, return None
+    if not checkpoint_files:
+        return None
+
+    # Return the file with the most recent modification time
+    return max(checkpoint_files, key=os.path.getmtime)
 
 
 class Orchestrator:
@@ -47,6 +60,7 @@ class Orchestrator:
 
     def _check_config(self, config):
         assert "name" in config, "'name' key missing in config"
+        assert "resume" in config, "'resume' key missing in config"
         assert "wandb" in config, "'wandb' key missing in config"
         assert "project" in config["wandb"], "'project_name' missing in 'wandb' config"
         assert "api_key" in config["wandb"], "'api_key' missing in 'wandb' config"
@@ -65,9 +79,15 @@ class Orchestrator:
     def run(self):
         for job in self.jobs:
 
+            # Define default logger and trainer
+            default_logger = "deep_orchestrator.loggers.default_logger.DefaultLogger"
+            default_trainer = "deep_orchestrator.trainers.default_trainer.DefaultTrainer"
+
+            # Load the config file
             with open(job, "r") as f:
                 config = json.load(f)
 
+            # Check the config file
             self._check_config(config)
 
             # Log into wandb
@@ -76,14 +96,15 @@ class Orchestrator:
 
             name = config['name']
             timestamp = datetime.now().strftime('%Y%m%d_%H%M')
-            job_dir = f"jobs/{name}/{timestamp}"
+            job_dir_raw = f"jobs/{name}/"
+            job_dir = f"{job_dir_raw}/{timestamp}"
             os.makedirs(job_dir, exist_ok=True)
 
             # Save the config file
             with open(f"{job_dir}/config.json", 'w') as f:
                 json.dump(config, f, indent=4)
 
-            Logger = self._load_class(config.get("logger", {}).get("type", "deep_orchestrator.loggers.default_logger.DefaultLogger"))
+            Logger = self._load_class(config.get("logger", {}).get("type", default_logger))
             assert issubclass(Logger, BaseLogger)
             config["wandb"]["config"] = self._get_wandb_config(config)
             config["wandb"]["save_dir"] = job_dir
@@ -92,29 +113,38 @@ class Orchestrator:
             try:
 
                 Module = self._load_class(config["module"]["type"])
-                assert issubclass(Module, BaseModule)
-                module = Module(config["module"]["params"])
+                assert issubclass(Module, BaseModule), "Module must be a subclass of BaseModule"
+                module = Module(**config["module"]["params"])
+
+                # If resume flag is set, load the checkpoint
+                latest_checkpoint = None
+                if config.get('resume', False):
+                    latest_checkpoint = find_latest_checkpoint(job_dir_raw)
+                    if latest_checkpoint is not None:
+                        logger.log_message(f"Checkpoint found. Loading trainer from checkpoint ...")
+                    else:
+                        logger.log_message(f"No checkpoint found in directory {job_dir}, training from scratch.")
 
                 Dataset = self._load_class(config["dataset"]["type"])
-                assert issubclass(Dataset, BaseDataset)
+                assert issubclass(Dataset, BaseDataset), "Dataset must be a subclass of BaseDataset"
                 dataset = Dataset(config["dataset"]["params"])
 
-                Trainer = self._load_class(config.get("trainer", {}).get("type", "deep_orchestrator.trainers.default_trainer.DefaultTrainer"))
-                assert issubclass(Trainer, BaseTrainer)
+                Trainer = self._load_class(config.get("trainer", {}).get("type", default_trainer))
+                assert issubclass(Trainer, BaseTrainer), "Trainer must be a subclass of BaseTrainer"
                 trainer = Trainer(config.get("trainer", {}).get("params", {}))
 
-            except Exception as e:
-                logger.log_message(f"Error while preparing objects for job '{name}': {str(e)}\n{traceback.format_exc()}")
+                # Prepare the data and trainer
+                try:
+                    trainer.prepare_data(dataset)
+                    # Train the model
+                    try:
+                        trainer.train(module, logger, latest_checkpoint)
+                        torch.save(module.state_dict(), f"{job_dir}/model.pt")
+                    except Exception as e:
+                        logger.log_message(f"Error while running job '{name}': {str(e)}\n{traceback.format_exc()}", kind="error")
 
-            try:
-                # Prepare the data
-                trainer.prepare_data(dataset)
-            except Exception as e:
-                logger.log_message(f"Error while preparing data for job '{name}': {str(e)}\n{traceback.format_exc()}")
+                except Exception as e:
+                    logger.log_message(f"Error while preparing trainer for job '{name}': {str(e)}\n{traceback.format_exc()}", kind="error")
 
-            # Train the model
-            try:
-                trainer.train(module, logger)
-                torch.save(module.state_dict(), f"{job_dir}/model.pt")
             except Exception as e:
-                logger.log_message(f"Error while running job '{name}': {str(e)}\n{traceback.format_exc()}")
+                logger.log_message(f"Error while preparing objects for job '{name}': {str(e)}\n{traceback.format_exc()}", kind="error")

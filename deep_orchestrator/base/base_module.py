@@ -2,9 +2,9 @@ import pytorch_lightning as pl
 
 
 class BaseModule(pl.LightningModule):
-    def __init__(self, params):
+    def __init__(self, *args, **kwargs):
         super().__init__()
-        self.params = params
+        self.params = kwargs
 
     def forward(self, x):
         pass

@@ -5,11 +5,11 @@ from deep_orchestrator.base.base_module import BaseModule
 
 
 class SimpleLinearModule(BaseModule):
-    def __init__(self, params):
-        super(SimpleLinearModule, self).__init__(params)
+    def __init__(self, *args, **kwargs):
+        super(SimpleLinearModule, self).__init__(*args, **kwargs)
 
         # Hyperparameters
-        self.learning_rate = params["learning_rate"]
+        self.learning_rate = self.params["learning_rate"]
 
         # Simple linear model
         self.model = nn.Sequential(
