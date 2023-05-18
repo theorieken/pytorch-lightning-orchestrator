@@ -8,10 +8,11 @@ import glob
 
 from datetime import datetime
 
-from .base.base_module import BaseModule
-from .base.base_logger import BaseLogger
-from .base.base_dataset import BaseDataset
-from .base.base_trainer import BaseTrainer
+from .base.module import BaseModule
+from .base.logger import BaseLogger
+from .base.dataset import BaseDataset
+from .base.callback import BaseCallback
+from .base.trainer import BaseTrainer
 
 
 def find_latest_checkpoint(directory):
@@ -75,12 +76,15 @@ class Orchestrator:
             assert "params" in config["logger"], "'params' key missing in 'logger' config"
         if "trainer" in config:
             assert "params" in config["trainer"], "'params' key missing in 'trainer' config"
+        if "callback" in config:
+            assert "params" in config["callback"], "'params' key missing in 'callback' config"
 
     def run(self):
         for job in self.jobs:
 
             # Define default logger and trainer
-            default_logger = "deep_orchestrator.loggers.default_logger.DefaultLogger"
+            default_logger = "deep_orchestrator.loggers.csv.CsvLogger"
+            default_callback = "deep_orchestrator.callbacks.default_callback.DefaultCallback"
             default_trainer = "deep_orchestrator.trainers.default_trainer.DefaultTrainer"
 
             # Load the config file
@@ -90,9 +94,14 @@ class Orchestrator:
             # Check the config file
             self._check_config(config)
 
-            # Log into wandb
+            # Log into wandb and handle setup if key exists
             api_key = config["wandb"].pop("api_key", None)
-            wandb.login(key=api_key)
+            logger_conf = {}
+            if api_key is not None:
+                wandb.login(key=api_key)
+                default_logger = "deep_orchestrator.loggers.wandb.WeightBiasesLogger"
+                logger_conf = config["wandb"]
+                logger_conf["config"] = self._get_wandb_config(config)
 
             name = config['name']
             timestamp = datetime.now().strftime('%Y%m%d_%H%M')
@@ -106,15 +115,13 @@ class Orchestrator:
 
             Logger = self._load_class(config.get("logger", {}).get("type", default_logger))
             assert issubclass(Logger, BaseLogger)
-            config["wandb"]["config"] = self._get_wandb_config(config)
-            config["wandb"]["save_dir"] = job_dir
-            logger = Logger({**config.get("logger", {}).get("params", {}), **{"job_name": name}}, config["wandb"])
+            logger_conf["save_dir"] = job_dir
+            logger = Logger(**{**config.get("logger", {}).get("params", {}), **{"job_name": name, "conf": logger_conf}})
+
+            # Log what logger is used
+            logger.log_message(f"Using logger {Logger.__name__}")
 
             try:
-
-                Module = self._load_class(config["module"]["type"])
-                assert issubclass(Module, BaseModule), "Module must be a subclass of BaseModule"
-                module = Module(**config["module"]["params"])
 
                 # If resume flag is set, load the checkpoint
                 latest_checkpoint = None
@@ -125,20 +132,28 @@ class Orchestrator:
                     else:
                         logger.log_message(f"No checkpoint found in directory {job_dir}, training from scratch.")
 
+                # Prepare all objects needed for the training
+                Module = self._load_class(config["module"]["type"])
+                assert issubclass(Module, BaseModule), "Module must be a subclass of BaseModule"
+                module = Module(**config["module"]["params"])
+
                 Dataset = self._load_class(config["dataset"]["type"])
                 assert issubclass(Dataset, BaseDataset), "Dataset must be a subclass of BaseDataset"
-                dataset = Dataset(config["dataset"]["params"])
+                dataset = Dataset(**config["dataset"]["params"])
 
                 Trainer = self._load_class(config.get("trainer", {}).get("type", default_trainer))
                 assert issubclass(Trainer, BaseTrainer), "Trainer must be a subclass of BaseTrainer"
-                trainer = Trainer(config.get("trainer", {}).get("params", {}))
+                trainer = Trainer(**config.get("trainer", {}).get("params", {}))
 
-                # Prepare the data and trainer
+                Callback = self._load_class(config.get("callback", {}).get("type", default_callback))
+                assert issubclass(Callback, BaseCallback), "Callback must be a subclass of BaseCallback"
+                callback = Callback(config.get("callback", {}).get("params", {}), logger)
+
                 try:
                     trainer.prepare_data(dataset)
-                    # Train the model
+                    trainer.prepare_trainer(logger, callback)
                     try:
-                        trainer.train(module, logger, latest_checkpoint)
+                        trainer.train(module, latest_checkpoint)
                         torch.save(module.state_dict(), f"{job_dir}/model.pt")
                     except Exception as e:
                         logger.log_message(f"Error while running job '{name}': {str(e)}\n{traceback.format_exc()}", kind="error")

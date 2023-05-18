@@ -6,7 +6,11 @@ import matplotlib.patches as patches
 import torch
 
 
-class BoundingBoxLogger(BaseLogger):
+class BaseNoduleModule:
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.last_batch = None
 
     def visualize(self, image, bbox):
 
@@ -55,7 +59,6 @@ class BoundingBoxLogger(BaseLogger):
 
         # Check if nodule is present
         if bool(bbox[0] > 0.5):
-            self.log_message("Bounding box computed")
             box_data.append({
                 # Position of the box
                 "position": {
@@ -71,7 +74,6 @@ class BoundingBoxLogger(BaseLogger):
             })
 
         if bool(bbox_predict[0] > 0.5):
-            self.log_message("Bounding box exists")
             box_data.append({
                 # Position of the box
                 "position": {
@@ -100,16 +102,18 @@ class BoundingBoxLogger(BaseLogger):
 
         return wandb_image
 
-    def on_epoch(self, trainer, pl_module, batch):
+    def on_validation_end(self):
 
-        x, y = batch
-        y_hat = pl_module(x)
+        x, y = self.last_batch
+        y_hat = self(x)
 
         examples = []
         for i in range(len(x)):
 
-            self.visualize(x[i], y[i])
+            # self.visualize(x[i], y[i])
 
             examples.append(self.get_example(x[i], y_hat[i], y[i]))
 
-        self.log_image('example', examples)
+        # this only works for wandb logger
+        if hasattr(self.trainer.logger, 'log_image'):
+            self.trainer.logger.log_image('example', examples)

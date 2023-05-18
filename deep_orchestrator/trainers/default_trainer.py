@@ -1,4 +1,5 @@
-from deep_orchestrator.base.base_trainer import BaseTrainer
+from deep_orchestrator.base.callback import BaseCallback
+from deep_orchestrator.base.trainer import BaseTrainer
 from torch.utils.data import DataLoader, random_split
 import pytorch_lightning as pl
 import torch
@@ -22,18 +23,22 @@ class DefaultTrainer(BaseTrainer):
 
         # Initialize data loaders for both parts of the split data set
         self.train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, pin_memory=pin_memory)
-        self.val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=pin_memory)
+        self.val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, pin_memory=pin_memory)
 
-    def train(self, module, logger, checkpoint_path: str = None):
+    def prepare_trainer(self, logger, callback):
+        self.trainer = pl.Trainer(
+            logger=logger,
+            max_epochs=self.max_epochs,
+            callbacks=[callback]
+        )
+
+    def train(self, module, checkpoint_path: str = None):
 
         assert self.train_dataloader is not None, "Data loader not initialized. Call prepare_data() first."
         assert self.val_dataloader is not None, "Data loader not initialized. Call prepare_data() first."
+        assert self.trainer is not None, "Trainer not initialized. Call prepare_trainer() first."
 
-        trainer = pl.Trainer(
-            logger=logger,
-            max_epochs=self.max_epochs,
-        )
         if checkpoint_path is None:
-            trainer.fit(module, self.train_dataloader, self.val_dataloader)
+            self.trainer.fit(module, self.train_dataloader, self.val_dataloader)
         else:
-            trainer.fit(module, self.train_dataloader, self.val_dataloader, ckpt_path=checkpoint_path)
+            self.trainer.fit(module, self.train_dataloader, self.val_dataloader, ckpt_path=checkpoint_path)

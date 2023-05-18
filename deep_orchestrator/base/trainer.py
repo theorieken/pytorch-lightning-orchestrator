@@ -7,9 +7,13 @@ class BaseTrainer:
         self.params = kwargs
         self.train_dataloader = None
         self.val_dataloader = None
+        self.trainer = None
 
     def prepare_data(self, dataset):
         raise NotImplementedError("This method needs to be implemented in the child class")
 
-    def train(self, module, logger, checkpoint_path: str = None):
+    def prepare_trainer(self, logger, callback):
+        raise NotImplementedError("This method needs to be implemented in the child class")
+
+    def train(self, module, checkpoint_path: str = None):
         raise NotImplementedError("This method needs to be implemented in the child class")

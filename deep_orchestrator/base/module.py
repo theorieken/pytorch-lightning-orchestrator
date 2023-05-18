@@ -7,10 +7,10 @@ class BaseModule(pl.LightningModule):
         self.params = kwargs
 
     def forward(self, x):
-        pass
+        raise NotImplementedError("This method needs to be implemented in the child class")
 
     def training_step(self, batch, batch_idx):
-        pass
+        raise NotImplementedError("This method needs to be implemented in the child class")
 
     def configure_optimizers(self):
-        pass
+        raise NotImplementedError("This method needs to be implemented in the child class")

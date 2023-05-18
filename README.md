@@ -64,6 +64,13 @@ Jobs are encoded as JSON files with a structure like the following:
             "num_workers": 4,
             "pin_memory": true
         }
+    },
+    "callback": {
+        "type": "YourCallback",
+        "params": {
+            "param1": "value1",
+            "param2": "value2"
+        }
     }
 }
 ```
