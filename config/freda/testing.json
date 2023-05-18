@@ -3,7 +3,7 @@
     "resume": true,
     "wandb": {
         "api_key": "508847e6cbd52b24df9f7538f1a1cf51c35d0cd2",
-        "project": "Next Gen Framework"
+        "project": "Testing"
     },
     "module": {
         "type": "src.Modules.simple_linear_module.SimpleLinearModule",
@@ -23,9 +23,5 @@
             "batch_size": 4,
             "num_workers": 0
         }
-    },
-    "logger": {
-        "type": "src.Loggers.bounding_box_logger.BoundingBoxLogger",
-        "params": {}
     }
 }
