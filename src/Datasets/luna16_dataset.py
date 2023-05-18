@@ -10,8 +10,8 @@ from deep_orchestrator.base.dataset import BaseDataset
 from torchvision.transforms.functional import resize
 from torchvision.transforms import Compose, Resize, ToTensor, Normalize, Grayscale, ToPILImage, Lambda
 
+from transforms import remove_padding, resize_image, crop_top, synthesize_xray
 from ..Modules.nodule_module import BaseNoduleModule
-from transforms import remove_padding, resize_image, crop_top
 
 
 class Node21Dataset(BaseDataset):
@@ -24,32 +24,19 @@ class Node21Dataset(BaseDataset):
         self.image_paths, self.label_data = self.load_paths_and_labels()
 
     def load_paths_and_labels(self):
-        image_dir = os.path.join(self.data_dir, "cxr_images", "proccessed_data", "images")
-        label_csv_path = os.path.join(self.data_dir, "cxr_images", "proccessed_data", "metadata.csv")
 
-        label_data = pd.read_csv(label_csv_path)
+        # TODO: load the data from the luna16 dataset
 
-        # Check if each image exists before adding it to the list
-        image_paths = [os.path.join(image_dir, img_name) for img_name in label_data["img_name"] if os.path.exists(os.path.join(image_dir, img_name))]
-
-        # Match label data rows to existing images
-        label_data = label_data[label_data["img_name"].isin([os.path.basename(path) for path in image_paths])]
-
-        # Shuffle the data and select a subset if self.fraction < 1
-        if self.fraction < 1.0:
-            combined = list(zip(image_paths, label_data.values))
-            random.shuffle(combined)
-            num_samples = int(len(combined) * self.fraction)
-            image_paths, label_data_values = zip(*combined[:num_samples])
-            label_data = pd.DataFrame(np.array(label_data_values), columns=label_data.columns)
-
-        return list(image_paths), label_data
+        return [], []
 
     def __getitem__(self, idx):
         image_path = self.image_paths[idx]
 
         # Define the preprocessing pipeline
         preprocess = Compose([
+
+            # Synthesize an x-ray based on the luna data
+            Lambda(synthesize_xray),
 
             # Remove padding
             Lambda(remove_padding),
