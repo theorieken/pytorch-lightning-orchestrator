@@ -11,7 +11,7 @@ from torchvision.transforms.functional import resize
 from torchvision.transforms import Compose, Resize, ToTensor, Normalize, Grayscale, ToPILImage, Lambda
 
 from ..Modules.nodule_module import BaseNoduleModule
-from transforms import remove_padding, resize_image, crop_top
+from src.Datasets.transforms import remove_padding, resize_image, crop_top
 
 
 class Node21Dataset(BaseDataset):

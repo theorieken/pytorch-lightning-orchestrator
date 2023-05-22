@@ -10,7 +10,7 @@ from deep_orchestrator.base.dataset import BaseDataset
 from torchvision.transforms.functional import resize
 from torchvision.transforms import Compose, Resize, ToTensor, Normalize, Grayscale, ToPILImage, Lambda
 
-from transforms import remove_padding, resize_image, crop_top, synthesize_xray
+from src.Datasets.transforms import remove_padding, resize_image, crop_top, synthesize_xray
 from ..Modules.nodule_module import BaseNoduleModule
 
 
